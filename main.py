@@ -14,9 +14,15 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     await application.run_polling()
 
-if __name__ == "__main__":
+if name == "__main__":
     try:
+        # Tenta rodar normalmente
         asyncio.run(main())
-    except RuntimeError:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
+    except RuntimeError as e:
+        # Caso o Render já tenha um loop ativo, usa o existente
+        if "already running" in str(e) or "no current event loop" in str(e):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(main())
+        else:
+            raise
