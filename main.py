@@ -14,7 +14,7 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     await application.run_polling()
 
-if name == "__main__":
+if __name__ == "__main__":
     try:
         # Tenta rodar normalmente
         asyncio.run(main())
@@ -26,3 +26,4 @@ if name == "__main__":
             loop.run_until_complete(main())
         else:
             raise
+
