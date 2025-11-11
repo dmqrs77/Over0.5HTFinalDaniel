@@ -19,6 +19,7 @@ async def main():
     # Inicia o bot (o run_polling já gerencia o loop)
     await application.run_polling()
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     # Corrigido: roda o loop existente (sem erro de event loop duplicado)
     asyncio.get_event_loop().run_until_complete(main())
+
