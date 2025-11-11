@@ -1,83 +1,83 @@
-import os
 import asyncio
+import os
 import aiohttp
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
-from datetime import datetime
 
-# Carrega as variáveis de ambiente
+# Carrega variáveis do Render (.env)
 load_dotenv()
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-FOOTBALL_API_KEY = os.getenv("FOOTBALL_API_KEY")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+FOOTBALL_API_KEY = os.getenv("FOOTBALL_API_KEY")
 
-# === Funções do Bot ===
+# ==================== FUNÇÕES ====================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Bot de futebol ativo! Use /jogos para ver partidas de hoje ⚽")
+    """Comando /start no Telegram"""
+    await update.message.reply_text("🤖 Bot ativo e rodando no Render!")
 
-async def buscar_jogos_hoje():
-    """Busca partidas de hoje usando a API-Football"""
-    url = "https://v3.football.api-sports.io/fixtures"
-    data_hoje = datetime.now().strftime("%Y-%m-%d")
-    headers = {"x-apisports-key": FOOTBALL_API_KEY}
 
-    params = {"date": data_hoje, "league": "39", "season": "2025"}  # Exemplo: Premier League (39)
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers, params=params) as response:
-            if response.status != 200:
-                return f"⚠️ Erro ao buscar jogos (status {response.status})"
-            dados = await response.json()
+async def testar_api_football():
+    """Faz uma requisição simples para testar a API"""
+    if not FOOTBALL_API_KEY:
+        return "⚠️ API key não configurada!"
 
-    jogos = dados.get("response", [])
-    if not jogos:
-        return "⚽ Nenhum jogo encontrado para hoje."
+    url = "https://api.football-data.org/v4/competitions"
+    headers = {"X-Auth-Token": FOOTBALL_API_KEY}
 
-    mensagem = f"📅 *Jogos de hoje ({data_hoje}):*\n\n"
-    for jogo in jogos[:10]:  # limita a 10 pra não ficar muito longo
-        casa = jogo["teams"]["home"]["name"]
-        fora = jogo["teams"]["away"]["name"]
-        hora = jogo["fixture"]["date"][11:16]
-        mensagem += f"🕓 {hora} — {casa} 🆚 {fora}\n"
-
-    return mensagem
-
-async def jogos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /jogos"""
-    await update.message.reply_text("⏳ Buscando partidas de hoje...")
-    texto = await buscar_jogos_hoje()
-    await update.message.reply_text(texto, parse_mode="Markdown")
-
-async def enviar_mensagem_auto(application):
-    """Mensagem automática ao iniciar"""
     try:
-        if not CHAT_ID:
-            print("⚠️ Erro: CHAT_ID está vazio.")
-            return
-        await application.bot.send_message(chat_id=CHAT_ID, text="🤖 Bot foi iniciado com sucesso no Render!")
-        print("✅ Mensagem de inicialização enviada com sucesso!")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    total = len(data.get("competitions", []))
+                    return f"✅ API Football-Data está funcionando! ({total} competições retornadas)"
+                else:
+                    return f"❌ Erro na API Football-Data: HTTP {resp.status}"
+    except Exception as e:
+        return f"⚠️ Erro ao testar API: {e}"
+
+
+async def enviar_mensagem_inicial(application):
+    """Envia mensagem automática ao iniciar o bot"""
+    if not CHAT_ID:
+        print("⚠️ CHAT_ID não configurado.")
+        return
+
+    try:
+        # Testa a API antes de avisar o usuário
+        resultado_api = await testar_api_football()
+
+        await application.bot.send_message(
+            chat_id=CHAT_ID,
+            text=f"🚀 Bot iniciado com sucesso no Render!\n\n{resultado_api}"
+        )
+        print("✅ Mensagem inicial enviada.")
     except Exception as e:
         print(f"⚠️ Erro ao enviar mensagem automática: {e}")
 
-# === Inicialização ===
+
+# ==================== LOOP PRINCIPAL ====================
 
 async def main():
-    print("🤖 Bot iniciado... aguardando mensagens.")
+    print("🤖 Iniciando bot...")
 
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
-    # Adiciona comandos
+    application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("jogos", jogos))
 
-    # Envia mensagem inicial em background
-    asyncio.create_task(enviar_mensagem_auto(application))
+    # Envia mensagem inicial em segundo plano
+    asyncio.create_task(enviar_mensagem_inicial(application))
 
-    # Inicia o polling
-    await application.run_polling()
+    await application.initialize()
+    await application.start()
+    print("✅ Bot conectado ao Telegram.")
+
+    # Inicia polling sem fechar o loop
+    await application.updater.start_polling()
+    await asyncio.Event().wait()
+
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.run(main())
