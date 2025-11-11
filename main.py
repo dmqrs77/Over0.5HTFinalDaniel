@@ -24,5 +24,6 @@ async def main():
     # Mantém o bot rodando continuamente
     await application.run_polling()
 
-if _name_ == "_main_":
+if __name__ == "__main__":
+
     asyncio.run(main())
