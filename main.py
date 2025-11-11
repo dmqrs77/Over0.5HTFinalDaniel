@@ -2,8 +2,8 @@ import asyncio
 from telegram import Bot
 from telegram.ext import ApplicationBuilder, CommandHandler
 
-TOKEN = "SEU_TOKEN_AQUI"
-CHAT_ID = "SEU_CHAT_ID_AQUI"
+TOKEN = "8003772292:AAEDp-Hwr51tjuWjswqyNt7HnijYufui5aI"
+CHAT_ID = "436309150"
 
 bot = Bot(token=TOKEN)
 
@@ -33,3 +33,4 @@ if __name__ == "__main__":
             loop.run_forever()
         else:
             raise
+
