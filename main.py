@@ -2,71 +2,107 @@ import os
 import time
 import requests
 import nest_asyncio
-from bs4 import BeautifulSoup
 from flask import Flask
 from telegram import Bot
+from apscheduler.schedulers.background import BackgroundScheduler
+from bs4 import BeautifulSoup
 
-# Evita conflito de loop assíncrono
+# Evita problemas de loop async
 nest_asyncio.apply()
 
-# Configurações do bot via variáveis de ambiente
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-
-LOOP_SLEEP = int(os.getenv("LOOP_SLEEP", 25))
-MIN_MIN = int(os.getenv("MIN_MIN", 10))
-MAX_MIN = int(os.getenv("MAX_MIN", 25))
-MIN_SHOTS_TOTAL = int(os.getenv("MIN_SHOTS_TOTAL", 2))
-MIN_CORNERS_TOTAL = int(os.getenv("MIN_CORNERS_TOTAL", 2))
-MIN_XG_TOTAL = float(os.getenv("MIN_XG_TOTAL", 0.9))
-MIN_DANGEROUS = int(os.getenv("MIN_DANGEROUS_ATTACKS", 15))
-MIN_MOMENTUM = int(os.getenv("MIN_MOMENTUM_PCT", 60))
-HISTORY_N = int(os.getenv("HISTORY_N", 5))
-HISTORY_MIN_3PLUS = int(os.getenv("HISTORY_MIN_3PLUS", 3))
-
-PRIMARY_URL = os.getenv("PRIMARY_URL", "https://seu-app.onrender.com")
-
-bot = Bot(token=TELEGRAM_TOKEN)
+# Flask app para manter online
 app = Flask(__name__)
-
 
 @app.route("/")
 def home():
-    return "Bot rodando no Render!"
+    return "Bot rodando!"
 
+# Variáveis de ambiente
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+LOOP_SLEEP = int(os.getenv("LOOP_SLEEP", 25))
 
-def get_match_data():
-    try:
-        url = "https://www.flashscore.com/match/"
-        html = requests.get(url).text
+bot = Bot(token=TELEGRAM_TOKEN)
 
-        # 🚨 TROQUEI AQUI: removido "lxml"
-        soup = BeautifulSoup(html, "html.parser")
+########################################
+# LOGICA DO SCRAPER
+########################################
 
-        # Seu scraping aqui…
-        return {}
-    except Exception as e:
-        print("Erro ao obter dados:", e)
-        return None
+def get_live_matches():
+    url = "https://www.soccerstats.com/matches.asp?matchday=1"
+    html = requests.get(url, timeout=10).text
+    soup = BeautifulSoup(html, "html.parser")
 
+    games = []
 
-def loop_bot():
-    print("Loop iniciado…")
-    while True:
-        data = get_match_data()
-        if data:
-            bot.send_message(chat_id=CHAT_ID, text="⚽ Bot está funcionando!")
-        time.sleep(LOOP_SLEEP)
+    rows = soup.select("table#btable tbody tr")
 
+    for r in rows:
+        cols = r.find_all("td")
+        if len(cols) < 5:
+            continue
 
+        try:
+            minute = cols[0].text.strip()
+            home = cols[1].text.strip()
+            away = cols[3].text.strip()
+            score = cols[2].text.strip()
+
+            games.append({
+                "minute": minute,
+                "home": home,
+                "away": away,
+                "score": score
+            })
+        except:
+            pass
+
+    return games
+
+########################################
+# ROTINA PRINCIPAL
+########################################
+
+def bot_loop():
+    print("Rodando varredura...")
+
+    matches = get_live_matches()
+
+    for m in matches:
+        try:
+            minute = m["minute"]
+
+            # Exemplo: detectar apenas minutos entre 10 e 25
+            if "'" in minute:
+                min_now = int(minute.replace("'", ""))
+                if 10 <= min_now <= 25:
+
+                    msg = (
+                        f"⚽ *Jogo Encontrado*\n"
+                        f"{m['home']} x {m['away']}\n"
+                        f"Minuto: {minute}\n"
+                        f"Placar: {m['score']}"
+                    )
+
+                    bot.send_message(
+                        chat_id=CHAT_ID,
+                        text=msg,
+                        parse_mode="Markdown"
+                    )
+
+        except Exception as e:
+            print("Erro enviando jogo:", e)
+
+########################################
+# SCHEDULER
+########################################
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(bot_loop, "interval", seconds=LOOP_SLEEP)
+scheduler.start()
+
+########################################
+# START
+########################################
 if __name__ == "__main__":
-    from threading import Thread
-
-    # Thread para o loop do bot
-    t = Thread(target=loop_bot)
-    t.daemon = True
-    t.start()
-
-    # Inicializa o servidor web
-    app.run(host="0.0.0.0", port=10000)
-
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
