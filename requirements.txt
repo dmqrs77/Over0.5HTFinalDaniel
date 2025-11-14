@@ -1,8 +1,7 @@
-flask
-gunicorn
-requests
-beautifulsoup4
+flask==3.1.2
+gunicorn==23.0.0
+requests==2.32.3
+beautifulsoup4==4.12.2
 python-telegram-bot==13.15
-apscheduler
-nest_asyncio
-tzlocal
+APScheduler==3.10.1
+nest-asyncio==1.6.0
