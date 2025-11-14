@@ -1,5 +1,8 @@
-requests
-python-telegram-bot==13.15
 flask
 gunicorn
+requests
+beautifulsoup4
+python-telegram-bot==13.15
+apscheduler
 nest_asyncio
+tzlocal
