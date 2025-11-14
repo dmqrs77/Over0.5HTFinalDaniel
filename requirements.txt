@@ -1,6 +1,5 @@
-soccerdata
 requests
-nest_asyncio
-python-telegram-bot==20.0
-Flask
-pandas
+beautifulsoup4
+python-telegram-bot==13.15
+gunicorn
+flask
