@@ -1,14 +1,5 @@
 requests
-beautifulsoup4
-lxml==4.9.3
 python-telegram-bot==13.15
-Flask
+flask
 gunicorn
-APScheduler
 nest_asyncio
-urllib3
-certifi
-idna
-charset-normalizer
-tzlocal
-typing-extensions
